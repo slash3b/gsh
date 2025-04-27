@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
@@ -19,6 +20,8 @@ func main() {
 	// implement repl loop
 	//  take string after enter, how to do it??
 	//  execute it
+
+	// todo: implement builtin s, like exit, cd and etc.
 
 	// todo: handle case like gsh --version or gsh version
 
@@ -41,9 +44,7 @@ func main() {
 			select {
 			case <-ctx.Done():
 				return
-			case sg := <-sigch:
-				fmt.Println("caught signal", sg)
-				fmt.Println("-------------------------------")
+			case <-sigch:
 				cancel()
 			}
 		}
@@ -63,9 +64,6 @@ func main() {
 				break
 			}
 		}
-
-		fmt.Println("scanner is DONE")
-
 		// Ctrl+D will be interpreted as io.EOF marker
 		// and sc.Err will be nil
 		if sc.Err() != nil {
@@ -76,12 +74,13 @@ func main() {
 	}()
 
 	printPromptStart()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case in := <-inputch:
-			processInput(in)
+			processInput(ctx, in)
 			printPromptStart()
 		}
 	}
@@ -90,12 +89,24 @@ func main() {
 }
 
 func printPromptStart() {
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	// show pwd as well
-	fmt.Print(">> ")
+	fmt.Print(wd + "\033[1m <> \033[0m")
 }
 
-func processInput(s string) {
+func processInput(ctx context.Context, s string) {
 	s = strings.TrimSpace(s)
+
+	if s == "" {
+		return
+	}
+
+	// is builtin
+
 	switch s {
 	case "":
 		return
@@ -104,9 +115,19 @@ func processInput(s string) {
 	case "exit":
 		os.Exit(0)
 	default:
-		// os.StartProcess use it to start users programs
-		// this will actually run
-		fmt.Println(s)
+		// tokenize
+
+		tokens := strings.Fields(s)
+
+		cmd := exec.CommandContext(ctx, tokens[0], tokens[1:]...)
+
+		b, err := cmd.Output()
+		if err != nil {
+			fmt.Printf("output error: %s\n", err)
+			return
+		}
+
+		fmt.Println(string(b))
 	}
 }
 
