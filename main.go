@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -23,16 +24,24 @@ func main() {
 	defer cancel()
 
 	sigch := make(chan os.Signal)
-	signal.Notify(sigch, syscall.SIGINT, syscall.SIGHUP, syscall.SIGQUIT)
+	signal.Notify(sigch, syscall.SIGINT, syscall.SIGHUP)
+
+	// just a courtesy
+	// we could have just abandoned
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	// cancelling goroutine
 	go func() {
+		defer wg.Done()
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case sg := <-sigch:
 				fmt.Println("caught signal", sg)
+				fmt.Println("-------------------------------")
 				cancel()
 			}
 		}
@@ -46,8 +55,22 @@ func main() {
 		// todo(ilya): should be a better way to "close" this?
 		// check source code of Scan
 		for sc.Scan() {
-			inputch <- sc.Text()
+			select {
+			case inputch <- sc.Text():
+			case <-ctx.Done():
+				break
+			}
 		}
+
+		fmt.Println("scanner is DONE")
+
+		// Ctrl+D will be interpreted as io.EOF marker
+		// and sc.Err will be nil
+		if sc.Err() != nil {
+			fmt.Println("error:", sc.Err())
+		}
+
+		cancel()
 	}()
 
 	printPromptStart()
@@ -60,6 +83,8 @@ func main() {
 			printPromptStart()
 		}
 	}
+
+	wg.Wait()
 }
 
 func printPromptStart() {
