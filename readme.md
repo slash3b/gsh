@@ -2,6 +2,17 @@
 gsh is a toy shell that supports basic functionality
 todo: add list and examples maybe
 
+```
+/tmp/gsh ⮕ ls
+.git/ .gitignore LICENSE go.mod gsh main.go readme.md
+/tmp/gsh ⮕ cat go.mod
+module github.com/slash3b/gsh
+
+go 1.24.2
+
+/home/slash3b/Projects/personal/gsh ⮕
+```
+
 #### How to install
 
 go install github.com/slash3b/gsh@latest

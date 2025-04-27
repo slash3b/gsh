@@ -25,6 +25,8 @@ func main() {
 
 	// todo: handle case like gsh --version or gsh version
 
+	// todo: how the heck clear works out of the box???
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -95,7 +97,7 @@ func printPromptStart() {
 		os.Exit(1)
 	}
 	// show pwd as well
-	fmt.Print(wd + "\033[1m <> \033[0m")
+	fmt.Print(wd + "\033[1m 🐚 \033[0m")
 }
 
 func processInput(ctx context.Context, s string) {
