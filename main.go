@@ -20,6 +20,8 @@ func main() {
 	//  take string after enter, how to do it??
 	//  execute it
 
+	// todo: handle case like gsh --version or gsh version
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
