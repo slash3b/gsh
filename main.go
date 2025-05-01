@@ -7,20 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
 )
 
 func main() {
-	// run this program
-	// support a few builtins ls, cd
-	// ctrl-c should terminate running program by shell
-	// EOF or ctrl D or exit should terminate shell itself
-	// implement repl loop
-	//  take string after enter, how to do it??
-	//  execute it
-
 	// todo: implement builtin s, like exit, cd and etc.
 
 	// todo: handle case like gsh --version or gsh version
@@ -57,8 +50,6 @@ func main() {
 	// input goroutine
 	inputch := make(chan string)
 	go func() {
-		// todo(ilya): should be a better way to "close" this?
-		// check source code of Scan
 		for sc.Scan() {
 			select {
 			case inputch <- sc.Text():
@@ -97,7 +88,9 @@ func printPromptStart() {
 		os.Exit(1)
 	}
 	// show pwd as well
-	fmt.Print(wd + "\033[1m 🐚 \033[0m")
+	// todo(ilya): we do not have to do it
+	// everytime, this should be static.
+	fmt.Print(wd + "\033[1m —— \033[0m")
 }
 
 func processInput(ctx context.Context, s string) {
@@ -107,7 +100,7 @@ func processInput(ctx context.Context, s string) {
 		return
 	}
 
-	// is builtin
+	// todo: is builtin
 
 	switch s {
 	case "":
@@ -120,6 +113,45 @@ func processInput(ctx context.Context, s string) {
 		// tokenize
 
 		tokens := strings.Fields(s)
+
+		// simplest pipeline management
+		if idx := slices.Index(tokens, "|"); idx != -1 {
+			a := tokens[:idx]
+			b := tokens[idx+1:]
+
+			if len(a) == 0 || len(b) == 0 {
+				fmt.Println("error: empty command supplied")
+				return
+			}
+
+			cmd := exec.CommandContext(ctx, a[0], a[1:]...)
+
+			bout, err := cmd.Output()
+			if err != nil {
+				fmt.Printf("output error: %s\n", err)
+
+				return
+			}
+
+			cmd = exec.CommandContext(ctx, b[0], b[1:]...)
+			writer2, err := cmd.StdinPipe()
+			if err != nil {
+				panic(err)
+			}
+
+			writer2.Write(bout)
+			writer2.Close()
+
+			bout, err = cmd.Output()
+			if err != nil {
+				fmt.Printf("output error: %s\n", err)
+
+				return
+			}
+			fmt.Println(string(bout))
+
+			return
+		}
 
 		cmd := exec.CommandContext(ctx, tokens[0], tokens[1:]...)
 
